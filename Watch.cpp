@@ -4,6 +4,7 @@
 #include <boost/statechart/transition.hpp>
 #include <thread>
 #include <windows.h>
+#include <mutex>
 
 #define START_STOP_KEY 83
 #define RESET_KEY 82
@@ -17,6 +18,8 @@ namespace mpl = boost::mpl;
 double base_time = 0;
 static HANDLE handle_in = NULL;
 static HANDLE handle_out = NULL;
+bool run_cntr = true;
+std::mutex m;
 
 struct IElapsedTime {
 	virtual double get_time_elapsed() const = 0;
@@ -102,7 +105,7 @@ void hide_cursor() {
 	SetConsoleCursorInfo(handle_out, &info); 
 }
 
-void counter(StopWatch& watch, bool run_cntr) {
+void counter(StopWatch& watch) {
 	while (run_cntr) {
 		gotoxy(20, 4);
 		double res = watch.get_elapsed_time();
@@ -128,13 +131,12 @@ void hide_input() {
 int main() {
 	StopWatch watch;
 	watch.initiate();
-	bool run_cntr = true;
 	bool start_flag = true;
 	bool set_base = false;
 	display_menu();
 	hide_cursor();
 	hide_input();
-	std::thread t1(counter, std::ref(watch), std::ref(run_cntr));
+	std::thread t1(counter, std::ref(watch));
 	char temp;
 	while(start_flag){
 			temp = getchar();
@@ -154,7 +156,10 @@ int main() {
 			case EXIT_KEY:
 				std::cout << "Exiting!" << std::endl;
 				start_flag = false;
-				run_cntr = false;
+				{
+					std::lock_guard<std::mutex> lg(m);
+					run_cntr = false;
+				}
 				break;
 			}
 		
